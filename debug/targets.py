@@ -5,7 +5,7 @@ import tempfile
 
 import testlib
 
-class Hart(object):
+class Hart:
     # XLEN of the hart. May be overridden with --32 or --64 command line
     # options.
     xlen = 0
@@ -43,10 +43,9 @@ class Hart(object):
         # target.misa is set by testlib.ExamineTarget
         if self.misa:
             return self.misa & (1 << (ord(letter.upper()) - ord('A')))
-        else:
-            return False
+        return False
 
-class Target(object):
+class Target:
     # pylint: disable=too-many-instance-attributes
 
     # List of Hart object instances, one for each hart in the target.
@@ -85,6 +84,21 @@ class Target(object):
     # Supports simultaneous resume through hasel.
     support_hasel = True
 
+    # Tests whose names are mentioned in this list will be skipped and marked
+    # as not applicable. This is a crude mechanism that can be handy, but in
+    # general it's better to define some property like those above that
+    # describe behavior of this target, and tests can use that to decide
+    # whether they are applicable or not.
+    skip_tests = []
+
+    # Set False if semihosting should not be tested in this configuration,
+    # because it doesn't work and isn't expected to work.
+    test_semihosting = True
+
+    # Set False if manual hwbps (breakpoints set by directly writing tdata*)
+    # isn't supposed to work.
+    support_manual_hwbp = True
+
     # Internal variables:
     directory = None
     temporary_files = []
@@ -118,7 +132,6 @@ class Target(object):
 
     def create(self):
         """Create the target out of thin air, eg. start a simulator."""
-        pass
 
     def server(self):
         """Start the debug server that gdb connects to, eg. OpenOCD."""
@@ -136,21 +149,33 @@ class Target(object):
                     prefix=binary_name + "_")
             binary_name = self.temporary_binary.name
             Target.temporary_files.append(self.temporary_binary)
-        march = "rv%dima" % hart.xlen
-        for letter in "fdc":
-            if hart.extensionSupported(letter):
-                march += letter
-        testlib.compile(sources +
-                ("programs/entry.S", "programs/init.c",
-                    "-DNHARTS=%d" % len(self.harts),
-                    "-I", "../env",
-                    "-march=%s" % march,
-                    "-T", hart.link_script_path,
-                    "-nostartfiles",
-                    "-mcmodel=medany",
-                    "-DXLEN=%d" % hart.xlen,
-                    "-o", binary_name),
-                xlen=hart.xlen)
+
+        args = list(sources) + [
+                "programs/entry.S", "programs/init.c",
+                "-DNHARTS=%d" % len(self.harts),
+                "-I", "../env",
+                "-T", hart.link_script_path,
+                "-nostartfiles",
+                "-mcmodel=medany",
+                "-DXLEN=%d" % hart.xlen,
+                "-o", binary_name]
+
+        if hart.extensionSupported('e'):
+            args.append("-march=rv32e")
+            args.append("-mabi=ilp32e")
+            args.append("-DRV32E")
+        else:
+            march = "rv%dima" % hart.xlen
+            for letter in "fdcv":
+                if hart.extensionSupported(letter):
+                    march += letter
+            args.append("-march=%s" % march)
+            if hart.xlen == 32:
+                args.append("-mabi=ilp32")
+            else:
+                args.append("-mabi=lp%d" % hart.xlen)
+
+        testlib.compile(args)
         return binary_name
 
 def add_target_options(parser):

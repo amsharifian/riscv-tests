@@ -4,12 +4,18 @@ import testlib
 import spike64  # pylint: disable=import-error
 
 class spike64_2(targets.Target):
-    harts = [spike64.spike64_hart(), spike64.spike64_hart()]
+    harts = [spike64.spike64_hart(misa=0x8000000000341129),
+            spike64.spike64_hart(misa=0x8000000000341129)]
     openocd_config_path = "spike-2.cfg"
-    timeout_sec = 10
+    # Increased timeout because we use abstract_rti to artificially slow things
+    # down.
+    timeout_sec = 20
     implements_custom_test = True
     support_hasel = False
 
     def create(self):
-        return testlib.Spike(self, isa="RV64IMAFD", abstract_rti=30,
-                support_hasel=False, support_abstract_csr=False)
+        # TODO: It would be nice to test with slen=128, but spike currently
+        # requires vlen==slen.
+        return testlib.Spike(self, isa="RV64IMAFDV", abstract_rti=30,
+                support_hasel=False, support_abstract_csr=False,
+                vlen=512, elen=64, slen=512)

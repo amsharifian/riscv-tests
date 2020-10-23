@@ -28,6 +28,7 @@ SECTIONS
   . = ALIGN(0x1000);
   .tohost : { *(.tohost) }
 
+  . = ALIGN(0x1000);
   .text : { *(.text) }
 
   /* data segment */
@@ -49,15 +50,14 @@ SECTIONS
   /* thread-local data segment */
   .tdata :
   {
-    _tls_data = .;
-    *(.tdata.begin)
+    _tdata_begin = .;
     *(.tdata)
-    *(.tdata.end)
+    _tdata_end = .;
   }
   .tbss :
   {
     *(.tbss)
-    *(.tbss.end)
+    _tbss_end = .;
   }
 
   /* End of uninitalized data segement */

@@ -4,11 +4,14 @@ import testlib
 import spike32  # pylint: disable=import-error
 
 class spike32_2(targets.Target):
-    harts = [spike32.spike32_hart(), spike32.spike32_hart()]
+    harts = [spike32.spike32_hart(misa=0x40141129),
+            spike32.spike32_hart(misa=0x40141129)]
     openocd_config_path = "spike-rtos.cfg"
     timeout_sec = 30
     implements_custom_test = True
     support_hasel = False
+    test_semihosting = False
+    support_manual_hwbp = False # not supported with `-rtos riscv`
 
     def create(self):
         return testlib.Spike(self, progbufsize=0, dmi_rti=4,
